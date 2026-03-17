@@ -615,6 +615,19 @@ secure_open_gssapi(Port *port)
 			pg_GSS_error(_("could not accept GSSAPI security context"),
 						 major, minor);
 			gss_release_buffer(&minor, &output);
+
+			/*
+			 * gss_accept_sec_context() may have allocated a partial security
+			 * context even though it returned an error.  Delete it now so the
+			 * failed negotiation does not leave library-managed state behind.
+			 */
+			if (port->gss->ctx != GSS_C_NO_CONTEXT)
+			{
+				OM_uint32	lmin_s;
+
+				gss_delete_sec_context(&lmin_s, &port->gss->ctx,
+									   GSS_C_NO_BUFFER);
+			}
 			return -1;
 		}
 		else if (!(major & GSS_S_CONTINUE_NEEDED))
