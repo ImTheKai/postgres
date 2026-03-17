@@ -479,6 +479,13 @@ be_tls_open_server(Port *port)
 	}
 	if (!ssl_set_port_bio(port))
 	{
+		/*
+		 * ssl_set_port_bio() failed before ssl_in_use was set, so
+		 * be_tls_close() will not clean up port->ssl.  Free it now instead
+		 * of leaving a partially initialized SSL object behind.
+		 */
+		SSL_free(port->ssl);
+		port->ssl = NULL;
 		ereport(COMMERROR,
 				(errcode(ERRCODE_PROTOCOL_VIOLATION),
 				 errmsg("could not set SSL socket: %s",
